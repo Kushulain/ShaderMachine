@@ -4,12 +4,13 @@ import './App.css';
 import { render } from 'react-dom';
 import brace from 'brace';
 import AceEditor from 'react-ace';
-import {Surface} from 'gl-react-dom';
-import GL from 'gl-react';
 import windowSize from 'react-window-size';
 
 import 'brace/mode/glsl';
 import 'brace/theme/tomorrow_night';
+
+var ReactTHREE = require('react-three');
+var THREE = require('three');
 
 function onChange(newValue) {
   console.log('change',newValue);
@@ -17,84 +18,132 @@ function onChange(newValue) {
 
 }
 
-const element = <h1>Hello, world!</h1>;
-var colorA = "#F00";
-var colorB = "#550";
-var editorBackgroundCol = "rgba(15,15,15,0.2)";
+var vertexShader = `
+void main()	{
+  gl_Position = vec4( position, 1.0 );
+}`;
 
-const defaultShader = `
-precision highp float;
-varying vec2 uv; // This variable vary in all pixel position (normalized from vec2(0.0,0.0) to vec2(1.0,1.0))
+var fragmentShader = `uniform vec2 resolution;
+uniform float time;
 
-void main () { // This function is called FOR EACH PIXEL
-gl_FragColor = vec4(uv.x, uv.y, 0.5, 1.0); // red vary over X, green vary over Y, blue is 50%, alpha is 100%.
+void main() {
+  vec2 p = -1.0 + 2.0 * gl_FragCoord.xy / resolution.xy;
+  float a = time*40.0;
+  float d,e,f,g=1.0/40.0,h,i,r,q;
+  e=400.0*(p.x*0.5+0.5);
+  f=400.0*(p.y*0.5+0.5);
+  i=200.0+sin(e*g+a/150.0)*20.0;
+  d=200.0+cos(f*g/2.0)*18.0+cos(e*g)*7.0;
+  r=sqrt(pow(abs(i-e),2.0)+pow(abs(d-f),2.0));
+  q=f/r;
+  e=(r*cos(q))-a/2.0;f=(r*sin(q))-a/2.0;
+  d=sin(e*g)*176.0+sin(e*g)*164.0+r;
+  h=((f+d)+a/2.0)*g;
+  i=cos(h+r*p.x/1.3)*(e+e+a)+cos(q*g*6.0)*(r+h/3.0);
+  h=sin(f*g)*144.0-sin(e*g)*212.0*p.x;
+  h=(h+(f-e)*q+sin(r-(a+h)/7.0)*10.0+i/4.0)*g;
+  i+=cos(h*2.3*sin(a/350.0-q))*184.0*sin(q-(r*4.3+a/12.0)*g)+tan(r*g+h)*184.0*cos(r*g+h);
+  i=mod(i/5.6,256.0)/64.0;
+  if(i<0.0) i+=4.0;
+  if(i>=2.0) i=4.0-i;
+  d=r/350.0;
+  d+=sin(d*d*8.0)*0.52;
+  f=(sin(a*g)+1.0)/2.0;
+  gl_FragColor=vec4(vec3(f*i/1.6,i/2.0+d/13.0,i)*d*p.x+vec3(i/1.3+d/8.0,i/2.0+d/18.0,i)*d*(1.0-p.x),1.0);
 }
 `;
 
-const myShaders = GL.Shaders.create({
-  currentShader: {
-    frag: `
-precision highp float;
-varying vec2 uv; // This variable vary in all pixel position (normalized from vec2(0.0,0.0) to vec2(1.0,1.0))
+const { Renderer, Scene, Mesh, Object3d, PerspectiveCamera } = ReactTHREE;
 
-void main () { // This function is called FOR EACH PIXEL
-  gl_FragColor = vec4(uv.x, uv.y, 0.5, 1.0); // red vary over X, green vary over Y, blue is 50%, alpha is 100%.
+const element = <h1>Hello, world!</h1>;
+var colorA = "#F00";
+var colorB = "#550";
+var editorBackgroundCol = "rgba(15,15,15,0.5)";
+var geometry = new THREE.PlaneBufferGeometry( 2, 2 );
+
+
+class Wavey extends React.Component {
+  constructor(props) {
+    super(props)
+
+    this.uniforms = {
+      time: { type: "f", value: props.time },
+      resolution: { type: "v2", value: new THREE.Vector2(props.width, props.height) }
+    };
+
+    this.material = new THREE.ShaderMaterial({
+      uniforms: this.uniforms,
+      vertexShader: vertexShader,
+      fragmentShader: fragmentShader
+    });
+  }
+  componentWillReceiveProps(nextProps) {
+    this.uniforms.time.value = nextProps.time
+
+    if(nextProps.width !== this.props.width)
+      this.uniforms.resolution.value.x = nextProps.width;
+
+    if(nextProps.height !== this.props.height)
+      this.uniforms.resolution.value.y = nextProps.height;
+  }
+  render() {
+    return <Mesh geometry={geometry} material={this.material} />
+  }
 }
-    `
-  }
-});
 
-class ShaderMachineView extends Component
-{
-
-  updateDimensions() {
-    var w = window;
-    var d = document;
-    var documentElement = d.documentElement;
-    var body = d.getElementsByTagName('body')[0];
-    var resultWidth = w.innerWidth || documentElement.clientWidth || body.clientWidth;
-    var resultHeight = w.innerHeight|| documentElement.clientHeight|| body.clientHeight;
-
-    this.setState({width: resultWidth, height: resultHeight});
-    var parent = this._reactInternalInstance._currentElement._owner._instance;
-    console.log("parent:", parent.offsetWidth);
-
-    if (this.props.surfaceInstance) //alway undefined :(
-    {
-      this.props.surfaceInstance.setHeight(this.props.height*0.5);
-      this.props.surfaceInstance.setWidth(this.props.width);
-    }
-
-  }
-
+class ExampleScene extends React.Component {
   constructor(props) {
     super(props);
-    //this.state = {width: 100, height:100};
-    this.updateDimensions = this.updateDimensions.bind(this)
-    // console.log("huhu", props.width);
-    console.log("boah", props.shader);
+
+    this.state = {
+      time: 1.0,
+      width: window.innerWidth,
+      height: window.innerHeight  * 0.9
+    };
+
+    this.animate = () => {
+      this.setState({
+        time: this.state.time + 0.05
+      })
+
+      this.frameId = requestAnimationFrame(this.animate)
+    }
   }
 
-  componentWillMount() {
-       this.updateDimensions();
-   }
-   componentDidMount() {
-       window.addEventListener("resize", this.updateDimensions);
-   }
-   componentWillUnmount() {
-       window.removeEventListener("resize", this.updateDimensions);
-   }
-  render() {
-    // console.log("1");
-    //   console.log(window.innerHeight);
-    return (
-      <Surface width={window.innerWidth} height={window.innerHeight - 34} style={{top:34, left:0, right:0, bottom:0, position:"absolute", zIndex: 1}}
-        ref={(Surface) => { this.surfaceInstance = Surface; }} >
-        {/*<Surface width={window.innerWidth} height={window.innerHeight - 34} style={{top:34, left:0, right:0, bottom:0, position:"absolute", zIndex: 1}}*/}
-        <GL.Node shader={this.props.shader} />
-      </Surface>
-    );
+  componentDidMount() {
+    this.animate()
+
+    window.addEventListener( 'resize', this.onWindowResize.bind(this), false )
   }
+
+  componentWillUnmount() {
+    cancelAnimationFrame(this.frameId)
+    window.removeEventListener('resize', this.onWindowResize)
+  }
+
+  onWindowResize() {
+    this.setState({
+      width: window.innerWidth,
+      height: window.innerHeight * 0.9
+    })
+  }
+
+  render() {
+    var cameraprops = {position:{z: 1}};
+
+    return <Renderer width={this.state.width} height={this.state.height} pixelRatio={window.devicePixelRatio} >
+        <Scene width={this.state.width} height={this.state.height} camera="maincamera">
+            <PerspectiveCamera name="maincamera" {...cameraprops} />
+            <Wavey time={this.state.time} width={this.state.width} height={this.state.height} />
+        </Scene>
+    </Renderer>
+  }
+}
+
+function shaderstart() { // eslint-disable-line no-unused-vars
+  var renderelement = document.getElementById("three-box");
+
+  ReactTHREE.render(<ExampleScene />, renderelement);
 }
 
 
@@ -141,15 +190,11 @@ class App extends Component {
           <h3>Shader Machine</h3>
         </div>
 
-        {/*ref={input => {this.myInput = input}*/}
-        <div style={{position:"relative"}}>
-        {/*<div id="container" style={{position:"relative"}}>*/}
-            <div id="div1" style={{position:"absolute", top:0, left:0}}>
-                      <ShaderMachineView shader={myShaders.currentShader} width={window.innerWidth} height={window.innerHeight} />
+        <div className="container" id="container" style={{position:"absolute"}}>
+            <div className="container"  id="three-box" style={{position:"absolute", top:0, left:0}}>
             </div>
-            <div id="div2" style={{position:"absolute", top:0, left:0}}>
-                    <ShaderMachineEditor shadercode={defaultShader}>
-
+            <div  className="container"  id="div2" style={{position:"absolute", top:0, left:0}}>
+                    <ShaderMachineEditor shadercode={fragmentShader}>
                     </ShaderMachineEditor>
             </div>
         </div>
@@ -161,5 +206,7 @@ class App extends Component {
     );
   }
 }
+
+window.onload = shaderstart;
 
 export default App;
