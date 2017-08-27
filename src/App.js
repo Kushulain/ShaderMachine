@@ -22,6 +22,15 @@ var colorA = "#F00";
 var colorB = "#550";
 var editorBackgroundCol = "rgba(15,15,15,0.2)";
 
+const defaultShader = `
+precision highp float;
+varying vec2 uv; // This variable vary in all pixel position (normalized from vec2(0.0,0.0) to vec2(1.0,1.0))
+
+void main () { // This function is called FOR EACH PIXEL
+gl_FragColor = vec4(uv.x, uv.y, 0.5, 1.0); // red vary over X, green vary over Y, blue is 50%, alpha is 100%.
+}
+`;
+
 const myShaders = GL.Shaders.create({
   currentShader: {
     frag: `
@@ -63,6 +72,7 @@ class ShaderMachineView extends Component
     //this.state = {width: 100, height:100};
     this.updateDimensions = this.updateDimensions.bind(this)
     // console.log("huhu", props.width);
+    console.log("boah", props.shader);
   }
 
   componentWillMount() {
@@ -96,7 +106,8 @@ class ShaderMachineEditor extends Component
     // var editor = document.getElementById("editor");;
     // editor.setValue("the new text here");
     //this.props.text = this.props.text;
-    // console.log("huhu", props.width);
+     console.log("lalalal", props.width);
+     console.log("boh", this.props.shadercode);
   }
 
   lol()
@@ -106,7 +117,7 @@ class ShaderMachineEditor extends Component
   }
 
   render() {
-    // console.log("1");
+     console.log("1");
     //   console.log(window.innerHeight);
     return (
       <AceEditor id="editor" style={{fontSize: 20,zIndex: 2, backgroundColor:editorBackgroundCol}}
@@ -114,10 +125,8 @@ class ShaderMachineEditor extends Component
         theme="tomorrow_night"
         onChange={onChange}
         name="UNIQUE_ID_OF_DIV"
-        text="lol"
-        editorProps={{$blockScrolling: true}} >
-
-        hey {this.lol()}
+        value={this.props.shadercode}
+        editorProps={{$blockScrolling: true}} ref={(AceEditor) => { this.editor = AceEditor; }} >
       </AceEditor>
     );
   }
@@ -132,14 +141,15 @@ class App extends Component {
           <h3>Shader Machine</h3>
         </div>
 
-
-        <div style={{position:"relative"}} ref={input => {this.myInput = input}}>
+        {/*ref={input => {this.myInput = input}*/}
+        <div style={{position:"relative"}}>
         {/*<div id="container" style={{position:"relative"}}>*/}
             <div id="div1" style={{position:"absolute", top:0, left:0}}>
-                      <ShaderMachineView shader={myShaders.currentShader} width={this.myInput.offsetWidth} height={this.myInput.offsetHeight} />
+                      <ShaderMachineView shader={myShaders.currentShader} width={window.innerWidth} height={window.innerHeight} />
             </div>
             <div id="div2" style={{position:"absolute", top:0, left:0}}>
-                    <ShaderMachineEditor>
+                    <ShaderMachineEditor shadercode={defaultShader}>
+
                     </ShaderMachineEditor>
             </div>
         </div>
