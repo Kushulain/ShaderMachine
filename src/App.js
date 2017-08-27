@@ -61,6 +61,7 @@ var shaderMaterial = new THREE.ShaderMaterial({
 
 function onChange(newValue) {
   //console.log('change',newValue);
+  fragmentShader = newValue;
     console.log('window.width',window.innerWidth);
 
     var newShader = new THREE.ShaderMaterial({
@@ -87,7 +88,7 @@ const { Renderer, Scene, Mesh, Object3d, PerspectiveCamera } = ReactTHREE;
 const element = <h1>Hello, world!</h1>;
 var colorA = "#F00";
 var colorB = "#550";
-var editorBackgroundCol = "rgba(15,15,15,0.3)";
+var editorBackgroundCol = "rgba(15,15,15,0.0)";
 var geometry = new THREE.PlaneBufferGeometry( 2, 2 );
 var clock = new THREE.Clock();
 
@@ -188,14 +189,8 @@ class ShaderMachineEditor extends Component
     // var editor = document.getElementById("editor");;
     // editor.setValue("the new text here");
     //this.props.text = this.props.text;
-     console.log("lalalal", props.width);
-     console.log("boh", this.props.shadercode);
-  }
-
-  lol()
-  {
-    console.log("consolg");
-    return "mais oh";
+    //  console.log("lalalal", props.width);
+    //  console.log("boh", this.props.shadercode);
   }
 
   componentDidMount() {
@@ -207,6 +202,7 @@ class ShaderMachineEditor extends Component
   }
 
   onWindowResize() {
+    console.log("heyyy ========================== ", fragmentShader)
     this.setState({
       width: window.innerWidth,
       height: window.innerHeight * 0.9
@@ -222,7 +218,7 @@ class ShaderMachineEditor extends Component
         theme="tomorrow_night"
         onChange={onChange}
         name="UNIQUE_ID_OF_DIV"
-        value={this.props.shadercode}
+        value={fragmentShader}
         editorProps={{$blockScrolling: true}} ref={(AceEditor) => { this.editor = AceEditor; }} >
       </AceEditor>
     );

@@ -4,9 +4,9 @@ uniform float time;
 void main() {
   vec2 p = -1.0 + 2.0 * gl_FragCoord.xy / resolution.yy;
   
-  gl_FragColor=vec4(  0.5*length(p) + sin(time+length(p)*2.)*0.3,
-                      0.5*length(p) + sin(time+length(p)*3.)*0.3 ,
-                      0.5*length(p) + sin(time+length(p)*4.)*0.3 ,
+  gl_FragColor=vec4(  0.5*length(p) + sin(2.*time+length(p)*2.2)*0.3,
+                      0.5*length(p) + sin(3.*time+length(p)*3.1)*0.3 ,
+                      0.5*length(p) + sin(4.*time+length(p)*4.9)*0.3 ,
                       1.);
 }
 
