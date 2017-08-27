@@ -1,0 +1,21 @@
+{
+  "name": "shader-machine",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "gl-react": "^2.2.10",
+    "gl-react-dom": "^2.2.8",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1",
+    "react-scripts": "1.0.11",
+    "react-three": "^0.9.7",
+    "react-window-size": "^1.0.1",
+    "three": "^0.87.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  }
+}
