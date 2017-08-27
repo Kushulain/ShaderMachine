@@ -12,11 +12,6 @@ import 'brace/theme/tomorrow_night';
 var ReactTHREE = require('react-three');
 var THREE = require('three');
 
-function onChange(newValue) {
-  console.log('change',newValue);
-    console.log('window.width',window.innerWidth);
-
-}
 
 var vertexShader = `
 void main()	{
@@ -53,41 +48,68 @@ void main() {
 }
 `;
 
+var shaderUniforms = {
+  time: { type: "f", value: 0.0 },
+  resolution: { type: "v2", value: new THREE.Vector2(500, 500) }
+};
+
+var shaderMaterial = new THREE.ShaderMaterial({
+  uniforms: shaderUniforms,
+  vertexShader: vertexShader,
+  fragmentShader: fragmentShader
+});
+
+function onChange(newValue) {
+  //console.log('change',newValue);
+    console.log('window.width',window.innerWidth);
+
+    var newShader = new THREE.ShaderMaterial({
+      uniforms: shaderUniforms,
+      vertexShader: vertexShader,
+      fragmentShader: newValue
+    });
+
+    // console.log(newShader.program);
+    // console.log(shaderMaterial.program);
+		// newShader.addEventListener('shaderCompileError', function(err) {
+		// 	console.log('================================= === = = = = =Shader failed to compile');
+		// });
+		// newShader.addEventListener('programLinkError', function(err) {
+		// 	console.log('==================================   = = = = = = = Program failed to link');
+		// });
+    //console.log(THREE.WebGLProgram);
+      shaderMaterial = newShader;
+
+}
+
 const { Renderer, Scene, Mesh, Object3d, PerspectiveCamera } = ReactTHREE;
 
 const element = <h1>Hello, world!</h1>;
 var colorA = "#F00";
 var colorB = "#550";
-var editorBackgroundCol = "rgba(15,15,15,0.5)";
+var editorBackgroundCol = "rgba(15,15,15,0.3)";
 var geometry = new THREE.PlaneBufferGeometry( 2, 2 );
-
+var clock = new THREE.Clock();
 
 class Wavey extends React.Component {
   constructor(props) {
     super(props)
 
-    this.uniforms = {
-      time: { type: "f", value: props.time },
-      resolution: { type: "v2", value: new THREE.Vector2(props.width, props.height) }
-    };
+    shaderUniforms.resolution.value.x = props.width;
+    shaderUniforms.resolution.value.y = props.height;
 
-    this.material = new THREE.ShaderMaterial({
-      uniforms: this.uniforms,
-      vertexShader: vertexShader,
-      fragmentShader: fragmentShader
-    });
   }
   componentWillReceiveProps(nextProps) {
-    this.uniforms.time.value = nextProps.time
+    shaderUniforms.time.value = nextProps.time
 
     if(nextProps.width !== this.props.width)
-      this.uniforms.resolution.value.x = nextProps.width;
+      shaderUniforms.resolution.value.x = nextProps.width;
 
     if(nextProps.height !== this.props.height)
-      this.uniforms.resolution.value.y = nextProps.height;
+      shaderUniforms.resolution.value.y = nextProps.height;
   }
   render() {
-    return <Mesh geometry={geometry} material={this.material} />
+    return <Mesh geometry={geometry} material={shaderMaterial} />
   }
 }
 
@@ -98,21 +120,32 @@ class ExampleScene extends React.Component {
     this.state = {
       time: 1.0,
       width: window.innerWidth,
-      height: window.innerHeight  * 0.9
+      height: window.innerHeight  * 0.9,
     };
 
     this.animate = () => {
       this.setState({
-        time: this.state.time + 0.05
+        time: this.state.time + clock.getDelta(),
+          width: window.innerWidth,
+          height: window.innerHeight * 0.9
       })
 
       this.frameId = requestAnimationFrame(this.animate)
     }
   }
 
-  componentDidMount() {
-    this.animate()
+  // animate() {
+  //   this.setState({
+  //       time: this.state.time + clock.getDelta(),
+  //       width: window.innerWidth,
+  //       height: window.innerHeight * 0.9
+  //   })
+  //
+  //   this.frameId = requestAnimationFrame(this.animate)
+  // }
 
+  componentDidMount() {
+    this.animate();
     window.addEventListener( 'resize', this.onWindowResize.bind(this), false )
   }
 
@@ -142,8 +175,8 @@ class ExampleScene extends React.Component {
 
 function shaderstart() { // eslint-disable-line no-unused-vars
   var renderelement = document.getElementById("three-box");
-
-  ReactTHREE.render(<ExampleScene />, renderelement);
+  console.log("new shaderstart");
+  ReactTHREE.render(<ExampleScene/>, renderelement);
 }
 
 
@@ -165,11 +198,26 @@ class ShaderMachineEditor extends Component
     return "mais oh";
   }
 
+  componentDidMount() {
+    window.addEventListener( 'resize', this.onWindowResize.bind(this), false )
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.onWindowResize)
+  }
+
+  onWindowResize() {
+    this.setState({
+      width: window.innerWidth,
+      height: window.innerHeight * 0.9
+    })
+  }
+
   render() {
      console.log("1");
     //   console.log(window.innerHeight);
     return (
-      <AceEditor id="editor" style={{fontSize: 20,zIndex: 2, backgroundColor:editorBackgroundCol}}
+      <AceEditor id="editor" style={{fontSize: 20, height: window.innerHeight * 0.9, width: window.innerWidth, zIndex: 2, backgroundColor:editorBackgroundCol}}
         mode="glsl"
         theme="tomorrow_night"
         onChange={onChange}

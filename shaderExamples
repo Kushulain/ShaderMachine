@@ -1,0 +1,12 @@
+uniform vec2 resolution;
+uniform float time;
+
+void main() {
+  vec2 p = -1.0 + 2.0 * gl_FragCoord.xy / resolution.yy;
+  
+  gl_FragColor=vec4(  0.5*length(p) + sin(time+length(p)*2.)*0.3,
+                      0.5*length(p) + sin(time+length(p)*3.)*0.3 ,
+                      0.5*length(p) + sin(time+length(p)*4.)*0.3 ,
+                      1.);
+}
+
