@@ -1,5 +1,9 @@
 uniform vec2 resolution;
 uniform float time;
+uniform float timeSinceLastSpaceBar; 
+uniform float deltaTime;
+uniform vec2 mousePosition;
+uniform sampler2D lastImage; //texture2D( lastImage, gl_FragCoord.xy )
 
 void main() {
   vec2 p = -1.0 + 2.0 * gl_FragCoord.xy / resolution.yy;

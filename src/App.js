@@ -20,49 +20,54 @@ void main()	{
 
 var fragmentShader = `uniform vec2 resolution;
 uniform float time;
+uniform float timeSinceLastSpaceBar;
+uniform float deltaTime;
+uniform sampler2D lastImage; //texture2D( lastImage, gl_FragCoord.xy )
 
 void main() {
-  vec2 p = -1.0 + 2.0 * gl_FragCoord.xy / resolution.xy;
-  float a = time*40.0;
-  float d,e,f,g=1.0/40.0,h,i,r,q;
-  e=400.0*(p.x*0.5+0.5);
-  f=400.0*(p.y*0.5+0.5);
-  i=200.0+sin(e*g+a/150.0)*20.0;
-  d=200.0+cos(f*g/2.0)*18.0+cos(e*g)*7.0;
-  r=sqrt(pow(abs(i-e),2.0)+pow(abs(d-f),2.0));
-  q=f/r;
-  e=(r*cos(q))-a/2.0;f=(r*sin(q))-a/2.0;
-  d=sin(e*g)*176.0+sin(e*g)*164.0+r;
-  h=((f+d)+a/2.0)*g;
-  i=cos(h+r*p.x/1.3)*(e+e+a)+cos(q*g*6.0)*(r+h/3.0);
-  h=sin(f*g)*144.0-sin(e*g)*212.0*p.x;
-  h=(h+(f-e)*q+sin(r-(a+h)/7.0)*10.0+i/4.0)*g;
-  i+=cos(h*2.3*sin(a/350.0-q))*184.0*sin(q-(r*4.3+a/12.0)*g)+tan(r*g+h)*184.0*cos(r*g+h);
-  i=mod(i/5.6,256.0)/64.0;
-  if(i<0.0) i+=4.0;
-  if(i>=2.0) i=4.0-i;
-  d=r/350.0;
-  d+=sin(d*d*8.0)*0.52;
-  f=(sin(a*g)+1.0)/2.0;
-  gl_FragColor=vec4(vec3(f*i/1.6,i/2.0+d/13.0,i)*d*p.x+vec3(i/1.3+d/8.0,i/2.0+d/18.0,i)*d*(1.0-p.x),1.0);
+  vec2 p = -1.0 + 2.0 * gl_FragCoord.xy / resolution.yy;
+
+  gl_FragColor= texture2D( lastImage, gl_FragCoord.xy );
+  gl_FragColor+=vec4(  0.5*length(p) + sin(2.*time+length(p)*2.2)*0.3,
+                      0.5*length(p) + sin(3.*time+length(p)*3.1)*0.3 ,
+                      0.5*length(p) + sin(4.*time+length(p)*4.9)*0.3 ,
+                      1.);
 }
 `;
 
+var fragmentBlitShader = `			varying vec2 vUv;
+			uniform sampler2D tDiffuse;
+			void main() {
+				gl_FragColor = texture2D( tDiffuse, vUv );
+			}
+`;
+var rtTexture = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight * 0.9, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter, format: THREE.RGBFormat } );
+
 var shaderUniforms = {
+  lastImage: { value: rtTexture.texture },
   time: { type: "f", value: 0.0 },
-  resolution: { type: "v2", value: new THREE.Vector2(500, 500) }
+  timeSinceLastSpaceBar: { type: "f", value: Infinity },
+  deltaTime: { type: "f", value: 0.015 },
+  resolution: { type: "v2", value: new THREE.Vector2(500, 500) },
+  mousePosition: { type: "v2", value: new THREE.Vector2(0, 0) }
 };
 
 var shaderMaterial = new THREE.ShaderMaterial({
   uniforms: shaderUniforms,
   vertexShader: vertexShader,
-  fragmentShader: fragmentShader
+  fragmentShader: fragmentShader,
+  depthWrite: false
 });
 
+var materialBlitScreen = new THREE.ShaderMaterial( {
+	uniforms: { tDiffuse: { value: rtTexture.texture } },
+  vertexShader: vertexShader,
+	fragmentShader: fragmentBlitShader,
+	depthWrite: false
+} );
+
 function onChange(newValue) {
-  //console.log('change',newValue);
   fragmentShader = newValue;
-    console.log('window.width',window.innerWidth);
 
     var newShader = new THREE.ShaderMaterial({
       uniforms: shaderUniforms,
@@ -90,7 +95,49 @@ var colorA = "#F00";
 var colorB = "#550";
 var editorBackgroundCol = "rgba(15,15,15,0.0)";
 var geometry = new THREE.PlaneBufferGeometry( 2, 2 );
-var clock = new THREE.Clock();
+var clockTime = new THREE.Clock();
+var clockSpaceBar = new THREE.Clock();
+clockSpaceBar.elapsedTime = Infinity;
+var isSpaceBarPressed = false;
+var mouse = new THREE.Vector2();
+var test = false;
+
+function CustomRenderer(renderer, scene, cam)
+{
+  if (!test)
+  {
+    console.log(scene);
+    console.log(cam);
+    console.log(rtTexture);
+    test = true;
+  }
+  renderer.render(scene,cam,rtTexture,false);
+  renderer.clear();
+  renderer.render(scene,cam);
+}
+
+document.addEventListener("keydown", onDocumentKeyDown, false);
+function onDocumentKeyDown(event) {
+    var keyCode = event.which;
+    if (keyCode == 32) {
+      isSpaceBarPressed = true;
+    }
+};
+
+document.addEventListener("keyup", onDocumentKeyUp, false);
+function onDocumentKeyUp(event) {
+    var keyCode = event.which;
+    if (keyCode == 32) {
+      isSpaceBarPressed = false;
+    }
+};
+
+document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+function onDocumentMouseMove( event ) {
+  event.preventDefault();
+  mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+  mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+}
 
 class Wavey extends React.Component {
   constructor(props) {
@@ -102,6 +149,12 @@ class Wavey extends React.Component {
   }
   componentWillReceiveProps(nextProps) {
     shaderUniforms.time.value = nextProps.time
+    shaderUniforms.deltaTime.value = nextProps.deltaTime
+    shaderUniforms.timeSinceLastSpaceBar.value = nextProps.timeSinceLastSpaceBar
+    shaderUniforms.mousePosition.value.x = mouse.x
+    shaderUniforms.mousePosition.value.y = mouse.y
+    //shaderUniforms.lastImage = rtTexture.texture
+
 
     if(nextProps.width !== this.props.width)
       shaderUniforms.resolution.value.x = nextProps.width;
@@ -120,13 +173,28 @@ class ExampleScene extends React.Component {
 
     this.state = {
       time: 1.0,
+      deltaTime: 0.016,
+      timeSinceLastSpaceBar: Infinity,
       width: window.innerWidth,
       height: window.innerHeight  * 0.9,
     };
 
     this.animate = () => {
+      var delta = clockTime.getDelta()
+      if (isSpaceBarPressed) {
+        clockSpaceBar.start()
+      }
+
+      var _timeSinceLastSpaceBar = Infinity
+      if (clockSpaceBar.running) {
+        _timeSinceLastSpaceBar = clockSpaceBar.getElapsedTime()
+      }
+
+
       this.setState({
-        time: this.state.time + clock.getDelta(),
+        timeSinceLastSpaceBar: _timeSinceLastSpaceBar,
+        time: (this.state.time + delta) % 500.0,
+          deltaTime: delta,
           width: window.innerWidth,
           height: window.innerHeight * 0.9
       })
@@ -137,7 +205,7 @@ class ExampleScene extends React.Component {
 
   // animate() {
   //   this.setState({
-  //       time: this.state.time + clock.getDelta(),
+  //       time: this.state.time + clockTime.getDelta(),
   //       width: window.innerWidth,
   //       height: window.innerHeight * 0.9
   //   })
@@ -165,10 +233,10 @@ class ExampleScene extends React.Component {
   render() {
     var cameraprops = {position:{z: 1}};
 
-    return <Renderer width={this.state.width} height={this.state.height} pixelRatio={window.devicePixelRatio} >
+    return <Renderer customRender={CustomRenderer} width={this.state.width} height={this.state.height} pixelRatio={window.devicePixelRatio} >
         <Scene width={this.state.width} height={this.state.height} camera="maincamera">
             <PerspectiveCamera name="maincamera" {...cameraprops} />
-            <Wavey time={this.state.time} width={this.state.width} height={this.state.height} />
+            <Wavey timeSinceLastSpaceBar={this.state.timeSinceLastSpaceBar} time={this.state.time} deltaTime={this.state.deltaTime} width={this.state.width} height={this.state.height} />
         </Scene>
     </Renderer>
   }
@@ -177,7 +245,8 @@ class ExampleScene extends React.Component {
 function shaderstart() { // eslint-disable-line no-unused-vars
   var renderelement = document.getElementById("three-box");
   console.log("new shaderstart");
-  ReactTHREE.render(<ExampleScene/>, renderelement);
+  console.log(ReactTHREE.render(<ExampleScene/>, renderelement));
+  //ReactTHREE.render(<ExampleScene/>, renderelement, rtTexture:texture, true);
 }
 
 
@@ -202,7 +271,6 @@ class ShaderMachineEditor extends Component
   }
 
   onWindowResize() {
-    console.log("heyyy ========================== ", fragmentShader)
     this.setState({
       width: window.innerWidth,
       height: window.innerHeight * 0.9
@@ -210,8 +278,6 @@ class ShaderMachineEditor extends Component
   }
 
   render() {
-     console.log("1");
-    //   console.log(window.innerHeight);
     return (
       <AceEditor id="editor" style={{fontSize: 20, height: window.innerHeight * 0.9, width: window.innerWidth, zIndex: 2, backgroundColor:editorBackgroundCol}}
         mode="glsl"
